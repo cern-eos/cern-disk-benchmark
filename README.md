@@ -50,6 +50,13 @@ This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (M
 - Logs to `/var/tmp/update-benchmark-<device>.log` (iostat, 10s interval).
 - Helper wraps `scripts/update-benchmark.sh`.
 
+## Full benchmark (write + update, with plots)
+```
+./run-full-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
+```
+- Runs the write benchmark first, then the update benchmark with the same mount/parallelism.
+- Plots are saved as `write-speed-<device>.jpg` and `update-speed-<device>.jpg` in the project root.
+
 ## Low-level scripts
 - `scripts/write-benchmark.sh`, `scripts/write-benchmark`
 - `scripts/update-benchmark.sh`
