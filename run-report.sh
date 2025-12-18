@@ -65,13 +65,15 @@ UPDATE_LOG="/var/tmp/update-benchmark-${DEV_BASENAME}.log"
 WRITE_PLOT="/var/tmp/write-speed-${DEV_BASENAME}.jpg"
 UPDATE_PLOT="/var/tmp/update-speed-${DEV_BASENAME}.jpg"
 REPORT_PDF="/var/tmp/benchmark-report-${DEV_BASENAME}.pdf"
+RUN_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+HOSTNAME=$(hostname)
 
 info "Running full benchmark (write -> update) for $MOUNT ..."
 "${SCRIPT_DIR}/run-full-benchmark.sh" "$MOUNT" "$PARALLEL" "$STOP"
 
 info "Generating report at ${REPORT_PDF} ..."
 
-python3 - "$DEV_BASENAME" "$MOUNT" "$WRITE_PLOT" "$UPDATE_PLOT" "$REPORT_PDF" "$RESOLVED_DEV" <<'PY'
+python3 - "$DEV_BASENAME" "$MOUNT" "$WRITE_PLOT" "$UPDATE_PLOT" "$REPORT_PDF" "$RESOLVED_DEV" "$RUN_TIMESTAMP" "$HOSTNAME" <<'PY'
 import os
 import sys
 from typing import Tuple
@@ -129,9 +131,13 @@ def pdf_with_text_and_images(out_path: str, title: str, info_lines, images):
     lines = [title, ""] + info_lines
     text_parts = ["BT", "/F1 12 Tf", "1 0 0 1 50 %d Tm" % y_start]
     for line in lines:
-        safe = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-        text_parts.append(f"({safe}) Tj")
-        text_parts.append("0 -16 Td")
+        # Wrap long lines at ~90 chars for readability
+        while len(line) > 0:
+            chunk = line[:90]
+            line = line[90:]
+            safe = chunk.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+            text_parts.append(f"({safe}) Tj")
+            text_parts.append("0 -16 Td")
     text_parts.append("ET")
     text_stream = "\n".join(text_parts).encode("utf-8")
     text_stream_obj = add_object(f"<< /Length {len(text_stream)} >>\nstream\n{text_stream.decode('utf-8')}\nendstream")
@@ -209,10 +215,10 @@ def pdf_with_text_and_images(out_path: str, title: str, info_lines, images):
             f.write(p)
 
 def main():
-    if len(sys.argv) != 7:
-        print("usage: script <dev> <mount> <write_jpg> <update_jpg> <pdf_out> <device_path>", file=sys.stderr)
+    if len(sys.argv) != 9:
+        print("usage: script <dev> <mount> <write_jpg> <update_jpg> <pdf_out> <device_path> <timestamp> <hostname>", file=sys.stderr)
         sys.exit(1)
-    dev, mount, write_jpg, update_jpg, pdf_out, device_path = sys.argv[1:7]
+    dev, mount, write_jpg, update_jpg, pdf_out, device_path, ts, host = sys.argv[1:9]
 
     dev_base = os.path.basename(device_path)
     sysfs_base = f"/sys/block/{dev_base}"
@@ -227,15 +233,30 @@ def main():
         except PermissionError:
             return f"(permission denied: {p})"
 
-    info_lines = [
-        f"Device: {device_path}",
-        f"Mount:  {mount}",
+    def split_lines(block: str):
+        return block.splitlines() if block else []
+
+    info_lines = []
+    info_lines.extend([
+        f"Host     : {host}",
+        f"Run time : {ts} (UTC)",
+        f"Device   : {device_path}",
+        f"Mount    : {mount}",
         "",
         "lsblk:",
-        get_cmd_output(["lsblk", "-d", "-o", "NAME,MODEL,SIZE,SERIAL", device_path]),
+    ])
+    info_lines.extend(split_lines(get_cmd_output(["lsblk", "-d", "-o", "NAME,MODEL,SIZE,SERIAL", device_path])))
+    info_lines.extend([
         "",
         "xfs_info:",
-        get_cmd_output(["xfs_info", mount]),
+    ])
+    info_lines.extend(split_lines(get_cmd_output(["xfs_info", mount])))
+    info_lines.extend([
+        "",
+        "uname -a:",
+    ])
+    info_lines.extend(split_lines(get_cmd_output(["uname", "-a"])))
+    info_lines.extend([
         "",
         "Queue and I/O settings:",
         f"  queue_depth       : {read_sysfs('device/queue_depth')}",
@@ -245,11 +266,13 @@ def main():
         f"  write_cache (sys) : {read_sysfs('queue/write_cache')}",
         "",
         "Write cache (hdparm -W):",
-        get_cmd_output(["hdparm", "-W", device_path]),
+    ])
+    info_lines.extend(split_lines(get_cmd_output(["hdparm", "-W", device_path])))
+    info_lines.extend([
         "",
         "SAS/SATA controller (lspci):",
-        get_cmd_output(["sh", "-c", "lspci | egrep -i 'sas|sata|lsi|broadcom'"]),
-    ]
+    ])
+    info_lines.extend(split_lines(get_cmd_output(["sh", "-c", "lspci | egrep -i 'sas|sata|lsi|broadcom'"])))
 
     images = [
         (write_jpg, f"Write plot ({write_jpg})"),
