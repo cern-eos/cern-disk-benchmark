@@ -6,17 +6,18 @@
 - Python plotting dep: `python3 -m pip install matplotlib`
 
 ## Running the write benchmark
+Recommended wrapper:
 ```bash
-./write-benchmark.sh <mount-path> <parallelism>
+./run-write-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
 ```
 Example:
 ```bash
-./write-benchmark.sh /data100/benchmark 4
+./run-write-benchmark.sh /data100/benchmark 4 95
 ```
 
-- The script writes 800–1000 MiB chunks in parallel until the filesystem reaches the configured threshold (default 99%).
-- It creates/uses a 1 GiB seed file at `/var/tmp/1GB`.
-- It logs per-interval stats to `/var/tmp/write-benchmark-<device>.log`, where `<device>` is the block device backing the mount (e.g., `write-benchmark-sdf1.log`).
+- Writes 800–1000 MiB chunks in parallel until the filesystem reaches the configured threshold (default 99%).
+- Creates/uses a 1 GiB seed file at `/var/tmp/1GB`.
+- Logs per-interval stats to `/var/tmp/write-benchmark-<device>.log`, where `<device>` is the block device backing the mount (e.g., `write-benchmark-sdf1.log`).
 - Log line format: `<epoch-seconds> <usage-percent> <MBps>`
 
 ### Running via CMake target
@@ -42,14 +43,15 @@ This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (M
 
 ## Update benchmark (rewrite existing files)
 ```
-./update-benchmark.sh <mount-path> <parallelism>
+./run-update-benchmark.sh <mount-path> <parallelism>
 ```
 - Scans `<mount-path>` for files named `file.*` (non-recursive).
 - Spawns N workers; each randomly picks a file, deletes it, and recreates it with the same size using the 1 GiB seed.
 - Logs to `/var/tmp/update-benchmark-<device>.log` (iostat, 10s interval).
+- Helper wraps `scripts/update-benchmark.sh`.
 
-Helper wrapper:
-```
-./run-update-benchmark.sh <mount-path> <parallelism>
-```
+## Low-level scripts
+- `scripts/write-benchmark.sh`, `scripts/write-benchmark`
+- `scripts/update-benchmark.sh`
+- These are invoked by the top-level wrappers; you generally don't need to call them directly.
 

@@ -50,10 +50,10 @@ if(NOT DEFINED PYTHON_EXECUTABLE OR PYTHON_EXECUTABLE STREQUAL "")
   find_program(PYTHON_EXECUTABLE python3 REQUIRED)
 endif()
 
-# Prefer the wrapper script, fall back to the original .sh if needed.
-set(_benchmark_script "${SOURCE_DIR}/write-benchmark")
+# Prefer the wrapper script in scripts/, fall back to the .sh if needed.
+set(_benchmark_script "${SOURCE_DIR}/scripts/write-benchmark")
 if(NOT EXISTS "${_benchmark_script}")
-  set(_benchmark_script "${SOURCE_DIR}/write-benchmark.sh")
+  set(_benchmark_script "${SOURCE_DIR}/scripts/write-benchmark.sh")
 endif()
 
 message(STATUS "Running benchmark: ${_benchmark_script} ${_mount} ${_parallel}")
