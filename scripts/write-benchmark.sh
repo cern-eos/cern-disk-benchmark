@@ -289,6 +289,8 @@ LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
 BASE_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
 TARGET_USED_BYTES=$(( STOP_PERCENT * TOTAL_BYTES / 100 ))
+# df jumps to STOP_PERCENT when used_bytes reaches STOP_PERCENT% of total.
+# The delta we need to write is (TARGET_USED_BYTES - BASE_USED_BYTES).
 REMAIN_BYTES=$(( TARGET_USED_BYTES - BASE_USED_BYTES ))
 if (( REMAIN_BYTES < 0 )); then REMAIN_BYTES=0; fi
 # Average write size ~900 MiB (between 800–1000 MiB)
