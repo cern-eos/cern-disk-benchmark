@@ -57,6 +57,15 @@ This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (M
 - Runs the write benchmark first, then the update benchmark with the same mount/parallelism.
 - Plots are saved as `/var/tmp/write-speed-<device>.jpg` and `/var/tmp/update-speed-<device>.jpg`.
 
+## Report (full benchmark + PDF)
+```
+./run-report.sh <mount-path> [parallelism=1] [stop-percent=99]
+```
+- Runs the full benchmark, then generates `/var/tmp/benchmark-report-<device>.pdf` with:
+  - Device info (`lsblk -d -o NAME,MODEL,SIZE,SERIAL`)
+  - `xfs_info` output for the mount
+  - Embedded write and update plots (if present)
+
 ## Low-level scripts
 - `scripts/write-benchmark.sh`, `scripts/write-benchmark`
 - `scripts/update-benchmark.sh`
