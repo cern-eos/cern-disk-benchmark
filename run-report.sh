@@ -64,9 +64,10 @@ WRITE_LOG="/var/tmp/write-benchmark-${DEV_BASENAME}.log"
 UPDATE_LOG="/var/tmp/update-benchmark-${DEV_BASENAME}.log"
 WRITE_PLOT="/var/tmp/write-speed-${DEV_BASENAME}.jpg"
 UPDATE_PLOT="/var/tmp/update-speed-${DEV_BASENAME}.jpg"
-REPORT_PDF="/var/tmp/benchmark-report-${DEV_BASENAME}.pdf"
 RUN_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+RUN_UNIX_TS=$(date -u +%s)
 HOSTNAME=$(hostname)
+REPORT_PDF="/var/tmp/benchmark-report-${DEV_BASENAME}-${HOSTNAME}-${RUN_UNIX_TS}.pdf"
 
 info "Running full benchmark (write -> update) for $MOUNT ..."
 "${SCRIPT_DIR}/run-full-benchmark.sh" "$MOUNT" "$PARALLEL" "$STOP"
