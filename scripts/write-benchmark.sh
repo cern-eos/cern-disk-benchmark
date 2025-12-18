@@ -39,6 +39,7 @@ SEED_FILE="/var/tmp/1GB"
 LOG_FILE="/var/tmp/write-benchmark.log"
 START_TS=$(date +%s)
 BASE_USAGE=0
+TOTAL_BYTES=0
 
 usage() {
     echo "Usage: $0 <mount-path> [parallelism=1] [stop-percent=99]" >&2
@@ -128,6 +129,7 @@ writer() {
     local writer_id="$1"
     local mount="$2"
     local counter=0
+    local written_bytes=0
 
     while :; do
         # Check current usage percentage
@@ -152,13 +154,13 @@ writer() {
 
         local elapsed=$(( $(date +%s) - START_TS ))
         local eta="--:--:--"
-        if (( usage > BASE_USAGE )); then
-            local remaining=$((STOP_PERCENT - usage))
-            local progressed=$((usage - BASE_USAGE))
-            if (( remaining > 0 )); then
-                eta=$(human_eta $(( elapsed * remaining / progressed )))
-            else
-                eta="00:00:00"
+        written_bytes=$((written_bytes + size_mb * 1024 * 1024))
+        if (( TOTAL_BYTES > 0 )); then
+            local progress_milli=$((written_bytes * 100000 / TOTAL_BYTES)) # thousandths of percent
+            if (( progress_milli > 0 )); then
+                local rem_milli=$(((STOP_PERCENT - BASE_USAGE) * 1000 - progress_milli))
+                if (( rem_milli < 0 )); then rem_milli=0; fi
+                eta=$(human_eta $(( elapsed * rem_milli / progress_milli )))
             fi
         fi
 
@@ -249,6 +251,7 @@ create_seed_file
 print_disk_info
 
 BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
+TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
 TARGET_DEV=$(df -P "$MOUNT_PATH" | awk "NR==2 {print \$1}")
 RESOLVED_DEV=$(readlink -f "$TARGET_DEV" 2>/dev/null || echo "$TARGET_DEV")
 DSTAT_DEV=$(basename "$RESOLVED_DEV")
