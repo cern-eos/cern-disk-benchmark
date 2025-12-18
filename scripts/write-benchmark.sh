@@ -318,8 +318,8 @@ LOG_FILE="/var/tmp/write-benchmark-${DSTAT_DEV}.log"
 echo "Monitoring block device: $DSTAT_DEV (from df device $TARGET_DEV)"
 echo "Starting $PARALLEL parallel writers on $MOUNT_PATH (stop at ${STOP_PERCENT}% used)..."
 if (( EST_FILES > 0 )); then
-    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%% (current: %s, target: %s)\n" \
-        "$EST_FILES" "$STOP_PERCENT" "$(human_bytes "$BASE_USED_BYTES")" "$(human_bytes "$TARGET_ABS_USED")"
+    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%% (current: %s, target: %s, remaining: %s)\n" \
+        "$EST_FILES" "$STOP_PERCENT" "$(human_bytes "$BASE_USED_BYTES")" "$(human_bytes "$TARGET_ABS_USED")" "$(human_bytes "$REMAIN_BYTES")"
 fi
 DSTAT_PID=$(start_dstat "$DSTAT_DEV" "$MOUNT_PATH")
 
