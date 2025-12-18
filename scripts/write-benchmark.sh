@@ -47,6 +47,7 @@ LAST_TS=$START_TS
 LAST_BYTES=0
 LAST_DF_USAGE=0
 EST_FILES=0
+TARGET_ABS_USED=0
 
 usage() {
     echo "Usage: $0 <mount-path> [parallelism=1] [stop-percent=99]" >&2
@@ -95,6 +96,17 @@ human_eta() {
     local s=$1
     if (( s < 0 )); then s=0; fi
     printf "%02d:%02d:%02d" $((s/3600)) $(((s/60)%60)) $((s%60))
+}
+
+human_bytes() {
+    local b=$1
+    local u=("B" "KiB" "MiB" "GiB" "TiB" "PiB")
+    local i=0
+    while (( b >= 1024 && i < ${#u[@]}-1 )); do
+        b=$((b/1024))
+        i=$((i+1))
+    done
+    printf "%d%s" "$b" "${u[$i]}"
 }
 
 # --- Create 1 GiB seed file if needed --------------------------------------
@@ -290,6 +302,7 @@ LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
 BASE_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
 TARGET_DELTA_BYTES=$(( (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
+TARGET_ABS_USED=$(( STOP_PERCENT * TOTAL_BYTES / 100 ))
 if (( TARGET_DELTA_BYTES < 0 )); then TARGET_DELTA_BYTES=0; fi
 REMAIN_BYTES=$TARGET_DELTA_BYTES
 # Average write size ~900 MiB (between 800–1000 MiB)
@@ -307,7 +320,8 @@ LOG_FILE="/var/tmp/write-benchmark-${DSTAT_DEV}.log"
 echo "Monitoring block device: $DSTAT_DEV (from df device $TARGET_DEV)"
 echo "Starting $PARALLEL parallel writers on $MOUNT_PATH (stop at ${STOP_PERCENT}% used)..."
 if (( EST_FILES > 0 )); then
-    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%%\n" "$EST_FILES" "$STOP_PERCENT"
+    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%% (current: %s, target: %s)\n" \
+        "$EST_FILES" "$STOP_PERCENT" "$(human_bytes "$BASE_USED_BYTES")" "$(human_bytes "$TARGET_ABS_USED")"
 fi
 DSTAT_PID=$(start_dstat "$DSTAT_DEV" "$MOUNT_PATH")
 
