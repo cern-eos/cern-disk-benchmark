@@ -188,10 +188,10 @@ def pdf_with_text_and_images(out_path: str, title: str, info_lines, images):
             f.write(p)
 
 def main():
-    if len(sys.argv) != 6:
+    if len(sys.argv) != 7:
         print("usage: script <dev> <mount> <write_jpg> <update_jpg> <pdf_out> <device_path>", file=sys.stderr)
         sys.exit(1)
-    dev, mount, write_jpg, update_jpg, pdf_out, device_path = sys.argv[1:]
+    dev, mount, write_jpg, update_jpg, pdf_out, device_path = sys.argv[1:7]
 
     dev_base = os.path.basename(device_path)
     sysfs_base = f"/sys/block/{dev_base}"
