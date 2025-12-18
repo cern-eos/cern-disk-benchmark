@@ -41,7 +41,7 @@ START_TS=$(date +%s)
 BASE_USAGE=0
 TOTAL_BYTES=0
 BASE_USED_BYTES=0
-TARGET_ABS_USED=0
+TARGET_DELTA_BYTES=0
 WRITTEN_BYTES=0
 LAST_TS=$START_TS
 LAST_BYTES=0
@@ -186,16 +186,17 @@ writer() {
         local eta_df="--:--:--"
         local current_used_bytes
         current_used_bytes=$(df -B1 "$mount" | awk 'NR==2 {print $3}')
-        if [[ -n "$current_used_bytes" && "$current_used_bytes" =~ ^[0-9]+$ && TARGET_ABS_USED -gt 0 ]]; then
-            local remaining_df_bytes=$((TARGET_ABS_USED - current_used_bytes))
+        if [[ -n "$current_used_bytes" && "$current_used_bytes" =~ ^[0-9]+$ && TARGET_DELTA_BYTES -gt 0 ]]; then
+            local delta_used=$((current_used_bytes - BASE_USED_BYTES))
+            local remaining_df_bytes=$((TARGET_DELTA_BYTES - delta_used))
             if (( remaining_df_bytes < 0 )); then remaining_df_bytes=0; fi
             if (( rate_bytes > 0 )); then
                 eta_df=$(human_eta $(( remaining_df_bytes / rate_bytes )))
             fi
         fi
         local eta_rate="--:--:--"
-        if (( rate_bytes > 0 && TARGET_ABS_USED > 0 )); then
-            local remaining_bytes=$((TARGET_ABS_USED - current_used_bytes))
+        if (( rate_bytes > 0 && TARGET_DELTA_BYTES > 0 )); then
+            local remaining_bytes=$((TARGET_DELTA_BYTES - WRITTEN_BYTES))
             if (( remaining_bytes < 0 )); then remaining_bytes=0; fi
             eta_rate=$(human_eta $(( remaining_bytes / rate_bytes )))
         fi
@@ -299,10 +300,9 @@ BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
 LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
 BASE_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
-TARGET_ABS_USED=$(( BASE_USED_BYTES + (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
-if (( TARGET_ABS_USED < BASE_USED_BYTES )); then TARGET_ABS_USED=$BASE_USED_BYTES; fi
-REMAIN_BYTES=$(( TARGET_ABS_USED - BASE_USED_BYTES ))
-if (( REMAIN_BYTES < 0 )); then REMAIN_BYTES=0; fi
+TARGET_DELTA_BYTES=$(( (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
+if (( TARGET_DELTA_BYTES < 0 )); then TARGET_DELTA_BYTES=0; fi
+REMAIN_BYTES=$TARGET_DELTA_BYTES
 # Average write size ~900 MiB (between 800–1000 MiB)
 AVG_WRITE_BYTES=$((900 * 1024 * 1024))
 if (( AVG_WRITE_BYTES > 0 )); then
@@ -318,8 +318,8 @@ LOG_FILE="/var/tmp/write-benchmark-${DSTAT_DEV}.log"
 echo "Monitoring block device: $DSTAT_DEV (from df device $TARGET_DEV)"
 echo "Starting $PARALLEL parallel writers on $MOUNT_PATH (stop at ${STOP_PERCENT}% used)..."
 if (( EST_FILES > 0 )); then
-    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%% (current: %s, target: %s, remaining: %s)\n" \
-        "$EST_FILES" "$STOP_PERCENT" "$(human_bytes "$BASE_USED_BYTES")" "$(human_bytes "$TARGET_ABS_USED")" "$(human_bytes "$REMAIN_BYTES")"
+    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%% (current: %s, remaining: %s)\n" \
+        "$EST_FILES" "$STOP_PERCENT" "$(human_bytes "$BASE_USED_BYTES")" "$(human_bytes "$REMAIN_BYTES")"
 fi
 DSTAT_PID=$(start_dstat "$DSTAT_DEV" "$MOUNT_PATH")
 
