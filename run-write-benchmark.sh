@@ -12,5 +12,5 @@ MOUNT="$1"
 PARALLEL="${2:-1}"
 STOP="${3:-99}"
 
-exec cmake -P "${SCRIPT_DIR}/cmake/run-benchmark.cmake" "$MOUNT" "$PARALLEL" "$STOP"
+exec "${SCRIPT_DIR}/scripts/write-benchmark.sh" "$MOUNT" "$PARALLEL" "$STOP"
 

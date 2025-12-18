@@ -20,19 +20,6 @@ Example:
 - Logs per-interval stats to `/var/tmp/write-benchmark-<device>.log`, where `<device>` is the block device backing the mount (e.g., `write-benchmark-sdf1.log`).
 - Log line format: `<epoch-seconds> <usage-percent> <MBps>`
 
-### Running via CMake target
-```
-cmake -S . -B build -DMOUNTPOINT=/data100/benchmark -DPARALLELISM=4 -DSTOP_PERCENT=95
-cmake --build build --target benchmark
-```
-- The target runs `./write-benchmark <mount> <parallelism> <stop-percent>` and then calls `plot_benchmark.py`.
-- Plot is written to `write-speed-<device>.jpg` in the project root and the log remains in `/var/tmp/write-benchmark-<device>.log`.
-
-### One-shot helper (no CMake cache args)
-```
-./run-write-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
-```
-- Uses `cmake -P cmake/run-benchmark.cmake` under the hood (no configure step).
 
 ## Plotting the results
 ```bash
