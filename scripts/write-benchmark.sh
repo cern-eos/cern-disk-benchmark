@@ -44,6 +44,7 @@ TARGET_BYTES=0
 WRITTEN_BYTES=0
 LAST_TS=$START_TS
 LAST_BYTES=0
+LAST_DF_USAGE=0
 
 usage() {
     echo "Usage: $0 <mount-path> [parallelism=1] [stop-percent=99]" >&2
@@ -159,27 +160,39 @@ writer() {
         local eta="--:--:--"
         local sz_bytes=$((size_mb * 1024 * 1024))
         WRITTEN_BYTES=$((WRITTEN_BYTES + sz_bytes))
-        if (( TARGET_BYTES > 0 && WRITTEN_BYTES > 0 )); then
-            local now_ts
-            now_ts=$(date +%s)
-            local dt=$((now_ts - LAST_TS))
-            local dbytes=$((WRITTEN_BYTES - LAST_BYTES))
-            local rate_bytes=0
-            if (( dt > 0 && dbytes > 0 )); then
-                rate_bytes=$((dbytes / dt))
+        local now_ts
+        now_ts=$(date +%s)
+        local dt=$((now_ts - LAST_TS))
+        local dbytes=$((WRITTEN_BYTES - LAST_BYTES))
+        local rate_bytes=0
+        if (( dt > 0 && dbytes > 0 )); then
+            rate_bytes=$((dbytes / dt))
+        fi
+        local df_usage
+        df_usage=$(df -P "$mount" | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
+        local eta_df="--:--:--"
+        if [[ -n "$df_usage" && "$df_usage" =~ ^[0-9]+$ ]]; then
+            local df_delta=$((df_usage - BASE_USAGE))
+            local df_target=$((STOP_PERCENT - BASE_USAGE))
+            if (( df_delta > 0 && df_target > 0 && elapsed > 0 )); then
+                eta_df=$(human_eta $(( elapsed * (df_target - df_delta) / df_delta )))
             fi
-            local avg_rate=0
-            if (( elapsed > 0 )); then
-                avg_rate=$((WRITTEN_BYTES / elapsed))
-            fi
-            local rate=$(( rate_bytes > avg_rate ? rate_bytes : avg_rate ))
-            if (( rate > 0 )); then
-                local remaining=$((TARGET_BYTES - WRITTEN_BYTES))
-                if (( remaining < 0 )); then remaining=0; fi
-                eta=$(human_eta $(( remaining / rate )))
-            fi
-            LAST_TS=$now_ts
-            LAST_BYTES=$WRITTEN_BYTES
+        fi
+        local eta_rate="--:--:--"
+        if (( rate_bytes > 0 && TARGET_BYTES > 0 )); then
+            local remaining_bytes=$((TARGET_BYTES - WRITTEN_BYTES))
+            if (( remaining_bytes < 0 )); then remaining_bytes=0; fi
+            eta_rate=$(human_eta $(( remaining_bytes / rate_bytes )))
+        fi
+        # Prefer df-based ETA when available; fall back to rate.
+        if [[ "$eta_df" != "--:--:--" ]]; then
+            eta="$eta_df"
+        elif [[ "$eta_rate" != "--:--:--" ]]; then
+            eta="$eta_rate"
+        fi
+        LAST_TS=$now_ts
+        LAST_BYTES=$WRITTEN_BYTES
+        LAST_DF_USAGE=$df_usage
         fi
 
         # Compact progress line; overwrite in place.
@@ -269,6 +282,7 @@ create_seed_file
 print_disk_info
 
 BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
+LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
 TARGET_BYTES=$(( (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
 TARGET_DEV=$(df -P "$MOUNT_PATH" | awk "NR==2 {print \$1}")
