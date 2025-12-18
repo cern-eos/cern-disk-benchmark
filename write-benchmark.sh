@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Parallel write benchmark
-# Usage: ./write-benchmark.sh <mount-path> <parallelism>
+# Usage: ./write-benchmark.sh <mount-path> <parallelism> [stop-percent=99]
 #
 # - Creates /var/tmp/1GB (1 GiB) from /dev/urandom if needed
 # - Spawns N parallel writers copying random 800–1000 MiB chunks
@@ -22,12 +22,13 @@ usage() {
     exit 1
 }
 
-if [[ $# -ne 2 ]]; then
+if [[ $# -lt 2 || $# -gt 3 ]]; then
     usage
 fi
 
 MOUNT_PATH="$1"
 PARALLEL="$2"
+STOP_PERCENT="${3:-99}"
 
 if [[ ! -d "$MOUNT_PATH" ]]; then
     echo "ERROR: '$MOUNT_PATH' is not a directory" >&2
@@ -36,6 +37,11 @@ fi
 
 if ! [[ "$PARALLEL" =~ ^[0-9]+$ ]] || [[ "$PARALLEL" -le 0 ]]; then
     echo "ERROR: parallelism must be a positive integer" >&2
+    exit 1
+fi
+
+if ! [[ "$STOP_PERCENT" =~ ^[0-9]+$ ]] || [[ "$STOP_PERCENT" -lt 1 ]] || [[ "$STOP_PERCENT" -gt 100 ]]; then
+    echo "ERROR: stop-percent must be an integer between 1 and 100 (got '$STOP_PERCENT')" >&2
     exit 1
 fi
 
@@ -104,8 +110,8 @@ writer() {
             break
         fi
 
-        if [[ "$usage" -ge 99 ]]; then
-            echo "Writer $writer_id: filesystem at ${usage}% used, stopping."
+        if [[ "$usage" -ge "$STOP_PERCENT" ]]; then
+            echo "Writer $writer_id: filesystem at ${usage}% used (threshold ${STOP_PERCENT}%), stopping."
             break
         fi
 
@@ -204,7 +210,7 @@ DSTAT_DEV=$(basename "$RESOLVED_DEV")
 LOG_FILE="/var/tmp/write-benchmark-${DSTAT_DEV}.log"
 
 echo "Monitoring block device: $DSTAT_DEV (from df device $TARGET_DEV)"
-echo "Starting $PARALLEL parallel writers on $MOUNT_PATH..."
+echo "Starting $PARALLEL parallel writers on $MOUNT_PATH (stop at ${STOP_PERCENT}% used)..."
 DSTAT_PID=$(start_dstat "$DSTAT_DEV" "$MOUNT_PATH")
 
 WRITER_PIDS=()
