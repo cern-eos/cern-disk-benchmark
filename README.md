@@ -40,3 +40,11 @@ cmake --build build --target benchmark
 
 This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (MB/s) on the y-axis. The script skips header and diagnostic lines automatically.
 
+## Update benchmark (rewrite existing files)
+```
+./update-benchmark.sh <mount-path> <parallelism>
+```
+- Scans `<mount-path>` for files named `file.*` (non-recursive).
+- Spawns N workers; each randomly picks a file, deletes it, and recreates it with the same size using the 1 GiB seed.
+- Logs to `/var/tmp/update-benchmark-<device>.log` (iostat, 10s interval).
+
