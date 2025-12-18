@@ -38,13 +38,13 @@ echo "Running write benchmark..."
 "${SCRIPT_DIR}/run-write-benchmark.sh" "$MOUNT" "$PARALLEL" "$STOP"
 
 echo "Plotting write results to ${WRITE_PLOT}..."
-"${SCRIPT_DIR}/plot_benchmark.py" "$WRITE_LOG" "$WRITE_PLOT"
+python3 "${SCRIPT_DIR}/plot_benchmark.py" "$WRITE_LOG" "$WRITE_PLOT"
 
 echo "Running update benchmark..."
 "${SCRIPT_DIR}/run-update-benchmark.sh" "$MOUNT" "$PARALLEL"
 
 echo "Plotting update results to ${UPDATE_PLOT}..."
-"${SCRIPT_DIR}/plot_benchmark.py" "$UPDATE_LOG" "$UPDATE_PLOT"
+python3 "${SCRIPT_DIR}/plot_benchmark.py" "$UPDATE_LOG" "$UPDATE_PLOT"
 
 echo "Done. Plots:"
 echo "  Write : ${WRITE_PLOT}"
