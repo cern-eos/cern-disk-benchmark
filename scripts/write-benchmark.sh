@@ -302,6 +302,8 @@ BASE_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
 # Additional bytes needed to add (STOP_PERCENT - BASE_USAGE)% of total,
 # minus what is already used (as requested).
 TARGET_DELTA_BYTES=$(( (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
+# We only need to add the delta relative to current usage, not reach STOP_PERCENT absolute.
+# delta_bytes = (stop - start)% * total_bytes - current_used_bytes
 REMAIN_BYTES=$(( TARGET_DELTA_BYTES - BASE_USED_BYTES ))
 if (( REMAIN_BYTES < 0 )); then REMAIN_BYTES=0; fi
 # Average write size ~900 MiB (between 800–1000 MiB)
