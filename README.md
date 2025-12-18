@@ -55,7 +55,7 @@ This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (M
 ./run-full-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
 ```
 - Runs the write benchmark first, then the update benchmark with the same mount/parallelism.
-- Plots are saved as `write-speed-<device>.jpg` and `update-speed-<device>.jpg` in the project root.
+- Plots are saved as `/var/tmp/write-speed-<device>.jpg` and `/var/tmp/update-speed-<device>.jpg`.
 
 ## Low-level scripts
 - `scripts/write-benchmark.sh`, `scripts/write-benchmark`

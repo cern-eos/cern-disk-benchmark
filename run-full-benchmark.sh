@@ -24,8 +24,8 @@ DEV_BASENAME=$(basename "$RESOLVED_DEV")
 
 WRITE_LOG="/var/tmp/write-benchmark-${DEV_BASENAME}.log"
 UPDATE_LOG="/var/tmp/update-benchmark-${DEV_BASENAME}.log"
-WRITE_PLOT="${SCRIPT_DIR}/write-speed-${DEV_BASENAME}.jpg"
-UPDATE_PLOT="${SCRIPT_DIR}/update-speed-${DEV_BASENAME}.jpg"
+WRITE_PLOT="/var/tmp/write-speed-${DEV_BASENAME}.jpg"
+UPDATE_PLOT="/var/tmp/update-speed-${DEV_BASENAME}.jpg"
 
 echo "Running write benchmark..."
 "${SCRIPT_DIR}/run-write-benchmark.sh" "$MOUNT" "$PARALLEL" "$STOP"
