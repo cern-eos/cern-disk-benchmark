@@ -40,7 +40,8 @@ LOG_FILE="/var/tmp/write-benchmark.log"
 START_TS=$(date +%s)
 BASE_USAGE=0
 TOTAL_BYTES=0
-TARGET_BYTES=0
+BASE_USED_BYTES=0
+TARGET_USED_BYTES=0
 WRITTEN_BYTES=0
 LAST_TS=$START_TS
 LAST_BYTES=0
@@ -172,16 +173,18 @@ writer() {
         local df_usage
         df_usage=$(df -P "$mount" | awk 'NR==2 {gsub(/%/,"",$5); print $5}')
         local eta_df="--:--:--"
-        if [[ -n "$df_usage" && "$df_usage" =~ ^[0-9]+$ ]]; then
-            local df_delta=$((df_usage - BASE_USAGE))
-            local df_target=$((STOP_PERCENT - BASE_USAGE))
-            if (( df_delta > 0 && df_target > 0 && elapsed > 0 )); then
-                eta_df=$(human_eta $(( elapsed * (df_target - df_delta) / df_delta )))
+        local current_used_bytes
+        current_used_bytes=$(df -B1 "$mount" | awk 'NR==2 {print $3}')
+        if [[ -n "$current_used_bytes" && "$current_used_bytes" =~ ^[0-9]+$ && TARGET_USED_BYTES -gt 0 ]]; then
+            local remaining_df_bytes=$((TARGET_USED_BYTES - current_used_bytes))
+            if (( remaining_df_bytes < 0 )); then remaining_df_bytes=0; fi
+            if (( rate_bytes > 0 )); then
+                eta_df=$(human_eta $(( remaining_df_bytes / rate_bytes )))
             fi
         fi
         local eta_rate="--:--:--"
-        if (( rate_bytes > 0 && TARGET_BYTES > 0 )); then
-            local remaining_bytes=$((TARGET_BYTES - WRITTEN_BYTES))
+        if (( rate_bytes > 0 && TARGET_USED_BYTES > 0 )); then
+            local remaining_bytes=$((TARGET_USED_BYTES - BASE_USED_BYTES - WRITTEN_BYTES))
             if (( remaining_bytes < 0 )); then remaining_bytes=0; fi
             eta_rate=$(human_eta $(( remaining_bytes / rate_bytes )))
         fi
@@ -284,9 +287,9 @@ print_disk_info
 BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
 LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
-CURRENT_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
-TARGET_BYTES=$(( STOP_PERCENT * TOTAL_BYTES / 100 ))
-REMAIN_BYTES=$(( TARGET_BYTES - CURRENT_USED_BYTES ))
+BASE_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
+TARGET_USED_BYTES=$(( STOP_PERCENT * TOTAL_BYTES / 100 ))
+REMAIN_BYTES=$(( TARGET_USED_BYTES - BASE_USED_BYTES ))
 if (( REMAIN_BYTES < 0 )); then REMAIN_BYTES=0; fi
 # Average write size ~900 MiB (between 800–1000 MiB)
 AVG_WRITE_BYTES=$((900 * 1024 * 1024))
