@@ -41,7 +41,7 @@ START_TS=$(date +%s)
 BASE_USAGE=0
 TOTAL_BYTES=0
 BASE_USED_BYTES=0
-TARGET_USED_BYTES=0
+TARGET_DELTA_BYTES=0
 WRITTEN_BYTES=0
 LAST_TS=$START_TS
 LAST_BYTES=0
@@ -175,16 +175,17 @@ writer() {
         local eta_df="--:--:--"
         local current_used_bytes
         current_used_bytes=$(df -B1 "$mount" | awk 'NR==2 {print $3}')
-        if [[ -n "$current_used_bytes" && "$current_used_bytes" =~ ^[0-9]+$ && TARGET_USED_BYTES -gt 0 ]]; then
-            local remaining_df_bytes=$((TARGET_USED_BYTES - current_used_bytes))
+        if [[ -n "$current_used_bytes" && "$current_used_bytes" =~ ^[0-9]+$ && TARGET_DELTA_BYTES -gt 0 ]]; then
+            local delta_used=$((current_used_bytes - BASE_USED_BYTES))
+            local remaining_df_bytes=$((TARGET_DELTA_BYTES - delta_used))
             if (( remaining_df_bytes < 0 )); then remaining_df_bytes=0; fi
             if (( rate_bytes > 0 )); then
                 eta_df=$(human_eta $(( remaining_df_bytes / rate_bytes )))
             fi
         fi
         local eta_rate="--:--:--"
-        if (( rate_bytes > 0 && TARGET_USED_BYTES > 0 )); then
-            local remaining_bytes=$((TARGET_USED_BYTES - BASE_USED_BYTES - WRITTEN_BYTES))
+        if (( rate_bytes > 0 && TARGET_DELTA_BYTES > 0 )); then
+            local remaining_bytes=$((TARGET_DELTA_BYTES - WRITTEN_BYTES))
             if (( remaining_bytes < 0 )); then remaining_bytes=0; fi
             eta_rate=$(human_eta $(( remaining_bytes / rate_bytes )))
         fi
@@ -288,11 +289,9 @@ BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
 LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
 BASE_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
-TARGET_USED_BYTES=$(( STOP_PERCENT * TOTAL_BYTES / 100 ))
-# df jumps to STOP_PERCENT when used_bytes reaches STOP_PERCENT% of total.
-# The delta we need to write is (TARGET_USED_BYTES - BASE_USED_BYTES).
-REMAIN_BYTES=$(( TARGET_USED_BYTES - BASE_USED_BYTES ))
-if (( REMAIN_BYTES < 0 )); then REMAIN_BYTES=0; fi
+TARGET_DELTA_BYTES=$(( (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
+if (( TARGET_DELTA_BYTES < 0 )); then TARGET_DELTA_BYTES=0; fi
+REMAIN_BYTES=$TARGET_DELTA_BYTES
 # Average write size ~900 MiB (between 800–1000 MiB)
 AVG_WRITE_BYTES=$((900 * 1024 * 1024))
 if (( AVG_WRITE_BYTES > 0 )); then
