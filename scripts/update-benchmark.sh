@@ -1,5 +1,26 @@
 #!/usr/bin/env bash
-#
+# ----------------------------------------------------------------------
+# File: scripts/update-benchmark.sh
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2025 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+# 
 # Update benchmark: repeatedly rewrites existing benchmark files.
 # Usage: ./update-benchmark.sh <mount-path> <parallelism>
 #
@@ -191,7 +212,9 @@ worker() {
         local size_mb=$(( (bytes + 1024 * 1024 - 1) / (1024 * 1024) ))
         local base
         base=$(basename "$target")
-        printf '\rWorker %s: rewriting %s (%s MiB)...' "$id" "$base" "$size_mb"
+        local done=$((idx + 1))
+        local pct=$((done * 100 / count))
+        printf '\rProgress %3d%% (%d/%d) - worker %s: rewriting %s (%s MiB)...' "$pct" "$done" "$count" "$id" "$base" "$size_mb"
 
         rm -f "$target"
         if ! dd if="$SEED_FILE" of="$target" bs=1M count="$size_mb" iflag=fullblock conv=fsync status=none; then
