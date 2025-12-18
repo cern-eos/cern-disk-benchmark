@@ -8,5 +8,12 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+for dep in python3 dd iostat df; do
+  if ! command -v "$dep" >/dev/null 2>&1; then
+    echo "ERROR: '$dep' not found in PATH" >&2
+    exit 1
+  fi
+done
+
 exec "${SCRIPT_DIR}/scripts/update-benchmark.sh" "$@"
 
