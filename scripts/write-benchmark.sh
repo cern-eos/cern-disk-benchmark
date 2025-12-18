@@ -112,6 +112,7 @@ writer() {
 
         if [[ "$usage" -ge "$STOP_PERCENT" ]]; then
             echo "Writer $writer_id: filesystem at ${usage}% used (threshold ${STOP_PERCENT}%), stopping."
+            printf '\n'
             break
         fi
 
@@ -120,16 +121,20 @@ writer() {
         local size_mb=$((800 + RANDOM % 201))
         local outfile="$mount/file.${counter}.${writer_id}"
 
-        echo "Writer $writer_id: writing ${size_mb}MiB to $outfile (usage: ${usage}%)."
+        # Compact progress line; overwrite in place.
+        printf '\rWriter %s: file %s size %sMiB (usage: %s%%) ...' "$writer_id" "$counter" "$size_mb" "$usage"
 
         # Copy from the seed file; fsync to flush
         if ! dd if="$SEED_FILE" of="$outfile" bs=1M count="$size_mb" iflag=fullblock conv=fsync status=none; then
-            echo "Writer $writer_id: dd failed, possibly ENOSPC, exiting loop." >&2
+            echo -e "\nWriter $writer_id: dd failed, possibly ENOSPC, exiting loop." >&2
             break
         fi
 
         counter=$((counter + 1))
     done
+
+    # Ensure we leave the cursor on a new line.
+    printf '\n'
 }
 
 # --- IO monitor (iostat) ---------------------------------------------------
