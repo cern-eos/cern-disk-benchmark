@@ -174,15 +174,20 @@ worker() {
         fi
 
         local size_mb=$(( (bytes + 1024 * 1024 - 1) / (1024 * 1024) ))
-        echo "Worker $id: rewriting $(basename "$target") (${size_mb} MiB)..."
+        local base
+        base=$(basename "$target")
+        printf '\rWorker %s: rewriting %s (%s MiB)...' "$id" "$base" "$size_mb"
 
         rm -f "$target"
         if ! dd if="$SEED_FILE" of="$target" bs=1M count="$size_mb" iflag=fullblock conv=fsync status=none; then
-            echo "Worker $id: dd failed for $target" >&2
+            echo -e "\nWorker $id: dd failed for $target" >&2
         fi
 
         rmdir "$lock" 2>/dev/null || true
     done
+
+    # Ensure newline at exit.
+    printf '\n'
 }
 
 # --- Main ------------------------------------------------------------------
