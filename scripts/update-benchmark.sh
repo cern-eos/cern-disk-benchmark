@@ -37,6 +37,7 @@ ONE_GB_BYTES=$((1024 * 1024 * 1024))
 SEED_FILE="/var/tmp/1GB"
 LOG_FILE="/var/tmp/update-benchmark.log"
 START_TS=$(date +%s)
+TOTAL_BYTES=0
 
 usage() {
     echo "Usage: $0 <mount-path> <parallelism>" >&2
@@ -181,6 +182,7 @@ worker() {
     local mount="$2"
     local count=${#FILES[@]}
     local lfd
+    local written_bytes=0
 
     while :; do
         # Atomically claim the next index from the shared counter
@@ -223,8 +225,12 @@ worker() {
         local pct=$((done * 100 / count))
         local elapsed=$(( $(date +%s) - START_TS ))
         local eta="--:--:--"
-        if (( done > 0 )); then
-            eta=$(human_eta $(( elapsed * (count - done) / done )))
+        local sz_bytes=$((size_mb * 1024 * 1024))
+        written_bytes=$((written_bytes + sz_bytes))
+        if (( written_bytes > 0 && TOTAL_BYTES > 0 )); then
+            local remaining=$((TOTAL_BYTES - written_bytes))
+            if (( remaining < 0 )); then remaining=0; fi
+            eta=$(human_eta $(( remaining * elapsed / written_bytes )))
         fi
         printf '\rProgress %3d%% (%d/%d) ETA %s - worker %s: rewriting %s (%s MiB)...' "$pct" "$done" "$count" "$eta" "$id" "$base" "$size_mb"
 
@@ -244,6 +250,10 @@ worker() {
 
 create_seed_file
 read_file_list "$MOUNT_PATH"
+TOTAL_BYTES=0
+for f in "${FILES[@]}"; do
+    TOTAL_BYTES=$((TOTAL_BYTES + $(size_bytes "$f")))
+done
 
 TARGET_DEV=$(df -P "$MOUNT_PATH" | awk "NR==2 {print \$1}")
 RESOLVED_DEV=$(readlink -f "$TARGET_DEV" 2>/dev/null || echo "$TARGET_DEV")
