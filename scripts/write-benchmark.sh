@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Parallel write benchmark
-# Usage: ./write-benchmark.sh <mount-path> <parallelism> [stop-percent=99]
+# Usage: ./write-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
 #
 # - Creates /var/tmp/1GB (1 GiB) from /dev/urandom if needed
 # - Spawns N parallel writers copying random 800–1000 MiB chunks
@@ -18,16 +18,16 @@ SEED_FILE="/var/tmp/1GB"
 LOG_FILE="/var/tmp/write-benchmark.log"
 
 usage() {
-    echo "Usage: $0 <mount-path> <parallelism>" >&2
+    echo "Usage: $0 <mount-path> [parallelism=1] [stop-percent=99]" >&2
     exit 1
 }
 
-if [[ $# -lt 2 || $# -gt 3 ]]; then
+if [[ $# -lt 1 || $# -gt 3 ]]; then
     usage
 fi
 
 MOUNT_PATH="$1"
-PARALLEL="$2"
+PARALLEL="${2:-1}"
 STOP_PERCENT="${3:-99}"
 
 if [[ ! -d "$MOUNT_PATH" ]]; then
