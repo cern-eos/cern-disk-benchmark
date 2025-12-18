@@ -36,6 +36,7 @@ set -euo pipefail
 ONE_GB_BYTES=$((1024 * 1024 * 1024))
 SEED_FILE="/var/tmp/1GB"
 LOG_FILE="/var/tmp/update-benchmark.log"
+START_TS=$(date +%s)
 
 usage() {
     echo "Usage: $0 <mount-path> <parallelism>" >&2
@@ -65,6 +66,12 @@ for dep in dd df iostat find stat flock; do
         exit 1
     fi
 done
+
+human_eta() {
+    local s=$1
+    if (( s < 0 )); then s=0; fi
+    printf "%02d:%02d:%02d" $((s/3600)) $(((s/60)%60)) $((s%60))
+}
 
 # --- Create 1 GiB seed file if needed --------------------------------------
 
@@ -214,7 +221,12 @@ worker() {
         base=$(basename "$target")
         local done=$((idx + 1))
         local pct=$((done * 100 / count))
-        printf '\rProgress %3d%% (%d/%d) - worker %s: rewriting %s (%s MiB)...' "$pct" "$done" "$count" "$id" "$base" "$size_mb"
+        local elapsed=$(( $(date +%s) - START_TS ))
+        local eta="--:--:--"
+        if (( done > 0 )); then
+            eta=$(human_eta $(( elapsed * (count - done) / done )))
+        fi
+        printf '\rProgress %3d%% (%d/%d) ETA %s - worker %s: rewriting %s (%s MiB)...' "$pct" "$done" "$count" "$eta" "$id" "$base" "$size_mb"
 
         rm -f "$target"
         if ! dd if="$SEED_FILE" of="$target" bs=1M count="$size_mb" iflag=fullblock conv=fsync status=none; then

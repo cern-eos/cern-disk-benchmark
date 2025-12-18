@@ -37,6 +37,8 @@ set -uo pipefail
 ONE_GB_BYTES=$((1024 * 1024 * 1024))
 SEED_FILE="/var/tmp/1GB"
 LOG_FILE="/var/tmp/write-benchmark.log"
+START_TS=$(date +%s)
+BASE_USAGE=0
 
 usage() {
     echo "Usage: $0 <mount-path> [parallelism=1] [stop-percent=99]" >&2
@@ -80,6 +82,12 @@ if ! command -v iostat >/dev/null 2>&1; then
     echo "ERROR: 'iostat' not found in PATH (install sysstat)" >&2
     exit 1
 fi
+
+human_eta() {
+    local s=$1
+    if (( s < 0 )); then s=0; fi
+    printf "%02d:%02d:%02d" $((s/3600)) $(((s/60)%60)) $((s%60))
+}
 
 # --- Create 1 GiB seed file if needed --------------------------------------
 
@@ -142,8 +150,20 @@ writer() {
         local size_mb=$((800 + RANDOM % 201))
         local outfile="$mount/file.${counter}.${writer_id}"
 
+        local elapsed=$(( $(date +%s) - START_TS ))
+        local eta="--:--:--"
+        if (( usage > BASE_USAGE )); then
+            local remaining=$((STOP_PERCENT - usage))
+            local progressed=$((usage - BASE_USAGE))
+            if (( remaining > 0 )); then
+                eta=$(human_eta $(( elapsed * remaining / progressed )))
+            else
+                eta="00:00:00"
+            fi
+        fi
+
         # Compact progress line; overwrite in place.
-        printf '\rWriter %s: file %s size %sMiB (usage: %s%%) ...' "$writer_id" "$counter" "$size_mb" "$usage"
+        printf '\rWriter %s: file %s size %sMiB (usage: %s%%, ETA %s) ...' "$writer_id" "$counter" "$size_mb" "$usage" "$eta"
 
         # Copy from the seed file; fsync to flush
         if ! dd if="$SEED_FILE" of="$outfile" bs=1M count="$size_mb" iflag=fullblock conv=fsync status=none; then
@@ -228,6 +248,7 @@ start_dstat() {
 create_seed_file
 print_disk_info
 
+BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
 TARGET_DEV=$(df -P "$MOUNT_PATH" | awk "NR==2 {print \$1}")
 RESOLVED_DEV=$(readlink -f "$TARGET_DEV" 2>/dev/null || echo "$TARGET_DEV")
 DSTAT_DEV=$(basename "$RESOLVED_DEV")
