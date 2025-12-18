@@ -8,12 +8,22 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+if [[ -t 1 ]]; then
+  c_info="\033[36m"; c_ok="\033[32m"; c_warn="\033[33m"; c_err="\033[31m"; c_reset="\033[0m"
+else
+  c_info=""; c_ok=""; c_warn=""; c_err=""; c_reset=""
+fi
+
+info()  { echo -e "${c_info}[INFO]${c_reset} $*"; }
+ok()    { echo -e "${c_ok}[OK]${c_reset} $*"; }
+error() { echo -e "${c_err}[ERR]${c_reset} $*"; exit 1; }
+
 for dep in python3 dd iostat df; do
-  if ! command -v "$dep" >/dev/null 2>&1; then
-    echo "ERROR: '$dep' not found in PATH" >&2
-    exit 1
-  fi
+  command -v "$dep" >/dev/null 2>&1 || error "'$dep' not found in PATH"
 done
+python3 - <<'PY' >/dev/null 2>&1 || { echo "[ERR] python3 missing matplotlib" >&2; exit 1; }
+import matplotlib
+PY
 
 MOUNT="$1"
 PARALLEL="${2:-1}"
@@ -34,19 +44,21 @@ UPDATE_LOG="/var/tmp/update-benchmark-${DEV_BASENAME}.log"
 WRITE_PLOT="/var/tmp/write-speed-${DEV_BASENAME}.jpg"
 UPDATE_PLOT="/var/tmp/update-speed-${DEV_BASENAME}.jpg"
 
-echo "Running write benchmark..."
+info "Running write benchmark..."
 "${SCRIPT_DIR}/run-write-benchmark.sh" "$MOUNT" "$PARALLEL" "$STOP"
 
-echo "Plotting write results to ${WRITE_PLOT}..."
+info "Plotting write results to ${WRITE_PLOT}..."
 python3 "${SCRIPT_DIR}/plot_benchmark.py" "$WRITE_LOG" "$WRITE_PLOT"
+ok "Wrote ${WRITE_PLOT}"
 
-echo "Running update benchmark..."
+info "Running update benchmark..."
 "${SCRIPT_DIR}/run-update-benchmark.sh" "$MOUNT" "$PARALLEL"
 
-echo "Plotting update results to ${UPDATE_PLOT}..."
+info "Plotting update results to ${UPDATE_PLOT}..."
 python3 "${SCRIPT_DIR}/plot_benchmark.py" "$UPDATE_LOG" "$UPDATE_PLOT"
+ok "Wrote ${UPDATE_PLOT}"
 
-echo "Done. Plots:"
+ok "Done. Plots:"
 echo "  Write : ${WRITE_PLOT}"
 echo "  Update: ${UPDATE_PLOT}"
 
