@@ -38,7 +38,7 @@ if ! [[ "$PARALLEL" =~ ^[0-9]+$ ]] || [[ "$PARALLEL" -le 0 ]]; then
     exit 1
 fi
 
-for dep in dd df iostat find stat; do
+for dep in dd df iostat find stat flock; do
     if ! command -v "$dep" >/dev/null 2>&1; then
         echo "ERROR: '$dep' not found in PATH" >&2
         exit 1
@@ -152,9 +152,24 @@ worker() {
     local id="$1"
     local mount="$2"
     local count=${#FILES[@]}
+    local lfd
 
     while :; do
-        local idx=$((RANDOM % count))
+        # Atomically claim the next index from the shared counter
+        exec {lfd}> "$QUEUE_LOCK"
+        flock -x "$lfd"
+        local idx
+        idx=$(<"$QUEUE_FILE")
+        if [[ -z "$idx" ]]; then idx=0; fi
+        if (( idx >= count )); then
+            flock -u "$lfd"
+            exec {lfd}>&-
+            break
+        fi
+        echo $((idx + 1)) > "$QUEUE_FILE"
+        flock -u "$lfd"
+        exec {lfd}>&-
+
         local target="${FILES[$idx]}"
 
         if [[ ! -e "$target" ]]; then
@@ -200,9 +215,13 @@ RESOLVED_DEV=$(readlink -f "$TARGET_DEV" 2>/dev/null || echo "$TARGET_DEV")
 DSTAT_DEV=$(basename "$RESOLVED_DEV")
 
 LOG_FILE="/var/tmp/update-benchmark-${DSTAT_DEV}.log"
+QUEUE_FILE=$(mktemp /tmp/update-bench-queue.XXXXXX)
+QUEUE_LOCK="${QUEUE_FILE}.lock"
+echo 0 > "$QUEUE_FILE"
 
 echo "Monitoring block device: $DSTAT_DEV (from df device $TARGET_DEV)"
 echo "Starting $PARALLEL parallel updaters on $MOUNT_PATH..."
+echo "Each file will be rewritten once (total ${#FILES[@]} files)."
 DSTAT_PID=$(start_iostat "$DSTAT_DEV" "$MOUNT_PATH")
 
 WORKER_PIDS=()
@@ -214,6 +233,7 @@ done
 
 cleanup() {
     echo "Cleaning up..."
+    rm -f "$QUEUE_FILE" "$QUEUE_LOCK"
     for pid in "${WORKER_PIDS[@]}"; do
         if kill -0 "$pid" 2>/dev/null; then
             kill "$pid" 2>/dev/null || true
