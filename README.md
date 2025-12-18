@@ -29,7 +29,7 @@ cmake --build build --target benchmark
 
 ### One-shot helper (no CMake cache args)
 ```
-./run-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
+./run-write-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
 ```
 - Uses `cmake -P cmake/run-benchmark.cmake` under the hood (no configure step).
 
@@ -47,4 +47,9 @@ This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (M
 - Scans `<mount-path>` for files named `file.*` (non-recursive).
 - Spawns N workers; each randomly picks a file, deletes it, and recreates it with the same size using the 1 GiB seed.
 - Logs to `/var/tmp/update-benchmark-<device>.log` (iostat, 10s interval).
+
+Helper wrapper:
+```
+./run-update-benchmark.sh <mount-path> <parallelism>
+```
 
