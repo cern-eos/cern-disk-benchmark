@@ -22,15 +22,28 @@ if(DEFINED STOP_PERCENT AND NOT "${STOP_PERCENT}" STREQUAL "")
   set(_stop "${STOP_PERCENT}")
 endif()
 
+# Handle positional args (cmake -P <script> <mount> [parallel] [stop]) and tolerate
+# environments where CMAKE_ARGV1 may still contain the script path.
 if(_mount STREQUAL "" )
   if(CMAKE_ARGC GREATER 1)
-    set(_mount "${CMAKE_ARGV1}")
-    if(CMAKE_ARGC GREATER 2)
-      set(_parallel "${CMAKE_ARGV2}")
-      if(CMAKE_ARGC GREATER 3)
-        set(_stop "${CMAKE_ARGV3}")
-      endif()
+    set(_arg1 "${CMAKE_ARGV1}")
+    set(_start_idx 1)
+    if(_arg1 MATCHES "\\.cmake$")
+      # Shift if the script path is present as the first positional argument.
+      set(_start_idx 2)
     endif()
+
+    macro(_assign_arg _var _idx)
+      if(CMAKE_ARGC GREATER ${_idx})
+        cmake_language(EVAL CODE "set(${_var} \"${CMAKE_ARGV${_idx}}\")")
+      endif()
+    endmacro()
+
+    _assign_arg(_mount ${_start_idx})
+    math(EXPR _idx_parallel "${_start_idx} + 1")
+    math(EXPR _idx_stop "${_start_idx} + 2")
+    _assign_arg(_parallel ${_idx_parallel})
+    _assign_arg(_stop ${_idx_stop})
   endif()
 endif()
 
