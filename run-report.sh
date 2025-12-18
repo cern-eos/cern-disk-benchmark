@@ -118,23 +118,25 @@ def pdf_with_text_and_images(out_path: str, title: str, info_lines, images):
     Uses only standard library and embeds JPEGs directly.
     """
     objects = []
+    font_size = 10  # ~80% of previous 12pt
 
     def add_object(obj: str) -> int:
         objects.append(obj)
         return len(objects)
 
-    # Font object
-    font_obj = add_object("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    # Font object (monospace)
+    font_obj = add_object("<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>")
 
     # Text content stream
     y_start = 750
     lines = [title, ""] + info_lines
-    text_parts = ["BT", "/F1 12 Tf", "1 0 0 1 50 %d Tm" % y_start]
+    text_parts = ["BT", f"/F1 {font_size} Tf", "1 0 0 1 50 %d Tm" % y_start]
     for line in lines:
         # Wrap long lines at ~90 chars for readability
+        wrap = 100
         while len(line) > 0:
-            chunk = line[:90]
-            line = line[90:]
+            chunk = line[:wrap]
+            line = line[wrap:]
             safe = chunk.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
             text_parts.append(f"({safe}) Tj")
             text_parts.append("0 -16 Td")
@@ -242,40 +244,41 @@ def main():
     def split_lines(block: str):
         return block.splitlines() if block else []
 
+    sep = "-" * 72
     info_lines = []
     info_lines.extend([
         f"Host     : {host}",
         f"Run time : {ts} (UTC)",
         f"Device   : {device_path} (block: {dev_block_path})",
         f"Mount    : {mount}",
-        "",
+        sep,
         "lsblk:",
     ])
     info_lines.extend(split_lines(get_cmd_output(["lsblk", "-d", "-o", "NAME,MODEL,SIZE,SERIAL", device_path])))
     info_lines.extend([
-        "",
+        sep,
         "xfs_info:",
     ])
     info_lines.extend(split_lines(get_cmd_output(["xfs_info", mount])))
     info_lines.extend([
-        "",
+        sep,
         "uname -a:",
     ])
     info_lines.extend(split_lines(get_cmd_output(["uname", "-a"])))
     info_lines.extend([
-        "",
+        sep,
         "Queue and I/O settings:",
         f"  queue_depth       : {read_sysfs('device/queue_depth')}",
         f"  nr_requests       : {read_sysfs('queue/nr_requests')}",
         f"  max_sectors_kb    : {read_sysfs('queue/max_sectors_kb')}",
         f"  scheduler         : {read_sysfs('queue/scheduler')}",
         f"  write_cache (sys) : {read_sysfs('queue/write_cache')}",
-        "",
+        sep,
         "Write cache (hdparm -W):",
     ])
     info_lines.extend(split_lines(get_cmd_output(["hdparm", "-W", dev_block_path])))
     info_lines.extend([
-        "",
+        sep,
         "SAS/SATA controller (lspci):",
     ])
     info_lines.extend(split_lines(get_cmd_output(["sh", "-c", "lspci | egrep -i 'sas|sata|lsi|broadcom'"])))
