@@ -45,6 +45,7 @@ WRITTEN_BYTES=0
 LAST_TS=$START_TS
 LAST_BYTES=0
 LAST_DF_USAGE=0
+EST_FILES=0
 
 usage() {
     echo "Usage: $0 <mount-path> [parallelism=1] [stop-percent=99]" >&2
@@ -283,7 +284,15 @@ print_disk_info
 BASE_USAGE=$(df -P "$MOUNT_PATH" | awk "NR==2 {gsub(/%/,\"\",\$5); print \$5}")
 LAST_DF_USAGE="$BASE_USAGE"
 TOTAL_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$2}")
-TARGET_BYTES=$(( (STOP_PERCENT - BASE_USAGE) * TOTAL_BYTES / 100 ))
+CURRENT_USED_BYTES=$(df -B1 "$MOUNT_PATH" | awk "NR==2 {print \$3}")
+TARGET_BYTES=$(( STOP_PERCENT * TOTAL_BYTES / 100 ))
+REMAIN_BYTES=$(( TARGET_BYTES - CURRENT_USED_BYTES ))
+if (( REMAIN_BYTES < 0 )); then REMAIN_BYTES=0; fi
+# Average write size ~900 MiB (between 800–1000 MiB)
+AVG_WRITE_BYTES=$((900 * 1024 * 1024))
+if (( AVG_WRITE_BYTES > 0 )); then
+    EST_FILES=$(( (REMAIN_BYTES + AVG_WRITE_BYTES - 1) / AVG_WRITE_BYTES ))
+fi
 TARGET_DEV=$(df -P "$MOUNT_PATH" | awk "NR==2 {print \$1}")
 RESOLVED_DEV=$(readlink -f "$TARGET_DEV" 2>/dev/null || echo "$TARGET_DEV")
 DSTAT_DEV=$(basename "$RESOLVED_DEV")
@@ -293,6 +302,9 @@ LOG_FILE="/var/tmp/write-benchmark-${DSTAT_DEV}.log"
 
 echo "Monitoring block device: $DSTAT_DEV (from df device $TARGET_DEV)"
 echo "Starting $PARALLEL parallel writers on $MOUNT_PATH (stop at ${STOP_PERCENT}% used)..."
+if (( EST_FILES > 0 )); then
+    printf "Estimated files to write: ~%d (avg 900MiB) to reach %d%%\n" "$EST_FILES" "$STOP_PERCENT"
+fi
 DSTAT_PID=$(start_dstat "$DSTAT_DEV" "$MOUNT_PATH")
 
 WRITER_PIDS=()
