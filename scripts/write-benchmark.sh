@@ -193,7 +193,6 @@ writer() {
         LAST_TS=$now_ts
         LAST_BYTES=$WRITTEN_BYTES
         LAST_DF_USAGE=$df_usage
-        fi
 
         # Compact progress line; overwrite in place.
         printf '\rWriter %s: file %s size %sMiB (usage: %s%%, ETA %s) ...' "$writer_id" "$counter" "$size_mb" "$usage" "$eta"
