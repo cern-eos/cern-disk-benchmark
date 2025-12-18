@@ -176,6 +176,19 @@ def main():
         sys.exit(1)
     dev, mount, write_jpg, update_jpg, pdf_out, device_path = sys.argv[1:]
 
+    dev_base = os.path.basename(device_path)
+    sysfs_base = f"/sys/block/{dev_base}"
+
+    def read_sysfs(relpath: str) -> str:
+        p = os.path.join(sysfs_base, relpath)
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except FileNotFoundError:
+            return f"(not found: {p})"
+        except PermissionError:
+            return f"(permission denied: {p})"
+
     info_lines = [
         f"Device: {device_path}",
         f"Mount:  {mount}",
@@ -185,6 +198,19 @@ def main():
         "",
         "xfs_info:",
         get_cmd_output(["xfs_info", mount]),
+        "",
+        "Queue and I/O settings:",
+        f"  queue_depth       : {read_sysfs('device/queue_depth')}",
+        f"  nr_requests       : {read_sysfs('queue/nr_requests')}",
+        f"  max_sectors_kb    : {read_sysfs('queue/max_sectors_kb')}",
+        f"  scheduler         : {read_sysfs('queue/scheduler')}",
+        f"  write_cache (sys) : {read_sysfs('queue/write_cache')}",
+        "",
+        "Write cache (hdparm -W):",
+        get_cmd_output(["hdparm", "-W", device_path]),
+        "",
+        "SAS/SATA controller (lspci):",
+        get_cmd_output(["sh", "-c", "lspci | egrep -i 'sas|sata|lsi|broadcom'"]),
     ]
 
     images = [
