@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 <mount-path> <parallelism>" >&2
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Usage: $0 <mount-path> [parallelism=1]" >&2
   exit 1
 fi
 
@@ -15,5 +15,8 @@ for dep in python3 dd iostat df; do
   fi
 done
 
-exec "${SCRIPT_DIR}/scripts/update-benchmark.sh" "$@"
+MOUNT="$1"
+PARALLEL="${2:-1}"
+
+exec "${SCRIPT_DIR}/scripts/update-benchmark.sh" "$MOUNT" "$PARALLEL"
 
