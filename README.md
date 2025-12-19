@@ -1,4 +1,4 @@
-# SMR Bench
+# CERN Disk Benchmark Tool
 
 ## Prerequisites
 - `sysstat` (for `iostat`) — e.g., `sudo dnf install sysstat` on RHEL/Alma.
