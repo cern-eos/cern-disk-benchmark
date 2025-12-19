@@ -1,60 +1,52 @@
 # CERN Disk Benchmark Tool
 
 ## Prerequisites
-- `sysstat` (for `iostat`) — e.g., `sudo dnf install sysstat` on RHEL/Alma.
+- `sysstat` (for `iostat`) — e.g., `sudo dnf install sysstat` on RHEL/Alma
 - `python3` and `pip`
-- Python plotting dep: `python3 -m pip install matplotlib`
+- `python3 -m pip install matplotlib`
 
-## Running the write benchmark
-Recommended wrapper:
-```bash
-./run-write-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
-```
-Example:
-```bash
-./run-write-benchmark.sh /data100/benchmark 4 95
-```
-
-- Writes 800–1000 MiB chunks in parallel until the filesystem reaches the configured threshold (default 99%).
-- Creates/uses a 1 GiB seed file at `/var/tmp/1GB`.
-- Logs per-interval stats to `/var/tmp/write-benchmark-<device>.log`, where `<device>` is the block device backing the mount (e.g., `write-benchmark-sdf1.log`).
-- Log line format: `<epoch-seconds> <usage-percent> <MBps>`
-
-
-## Plotting the results
-```bash
-./plot_benchmark.py /var/tmp/write-benchmark-sdf1.log write-speed.jpg
-```
-
-This produces `write-speed.jpg` with time (UTC) on the x-axis and write speed (MB/s) on the y-axis. The script skips header and diagnostic lines automatically.
-
-## Update benchmark (rewrite existing files)
-```
-./run-update-benchmark.sh <mount-path> [parallelism=1]
-```
-- Scans `<mount-path>` for files named `file.*` (non-recursive).
-- Spawns N workers; each randomly picks a file, deletes it, and recreates it with the same size using the 1 GiB seed.
-- Logs to `/var/tmp/update-benchmark-<device>.log` (iostat, 10s interval).
-- Helper wraps `scripts/update-benchmark.sh`.
-
-## Full benchmark (write + update, with plots)
-```
-./run-full-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
-```
-- Runs the write benchmark first, then the update benchmark with the same mount/parallelism.
-- Plots are saved as `/var/tmp/write-speed-<device>.jpg` and `/var/tmp/update-speed-<device>.jpg`.
-
-## Report (full benchmark + PDF)
+## One-shot full benchmark + report
 ```
 ./run-report.sh <mount-path> [parallelism=1] [stop-percent=99]
 ```
-- Runs the full benchmark, then generates `/var/tmp/benchmark-report-<device>.pdf` with:
-  - Device info (`lsblk -d -o NAME,MODEL,SIZE,SERIAL`)
-  - `xfs_info` output for the mount
-  - Embedded write and update plots (if present)
+Runs write, then update, produces plots, and writes a PDF report.
+- Plots:
+  - `/var/tmp/write-speed-<device>.jpg`
+  - `/var/tmp/update-speed-<device>.jpg`
+- Report:
+  - `/var/tmp/benchmark-report-<device>-<hostname>-<unix_ts>.pdf`
+  - Contains host, run time, uname, lsblk, xfs_info, queue settings, hdparm cache, lspci SAS/SATA info, and embeds the plots.
 
-## Low-level scripts
+## If you want each step separately
+
+### Write benchmark
+```
+./run-write-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
+```
+- Writes 800–1000 MiB chunks until the stop threshold.
+- Seed file: `/var/tmp/1GB`.
+- Log: `/var/tmp/write-benchmark-<device>.log` (usage%, MB/s).
+
+### Update benchmark (rewrite existing files)
+```
+./run-update-benchmark.sh <mount-path> [parallelism=1]
+```
+- Rewrites each `file.*` (non-recursive) once with the same size.
+- Log: `/var/tmp/update-benchmark-<device>.log` (iostat).
+
+### Plots only
+```
+./plot_benchmark.py /var/tmp/write-benchmark-<device>.log out.jpg
+```
+- Generates a JPG plot of usage vs write speed.
+
+### Full benchmark only (write + update, no PDF)
+```
+./run-full-benchmark.sh <mount-path> [parallelism=1] [stop-percent=99]
+```
+- Runs write then update; saves the two plots above.
+
+## Low-level scripts (usually not called directly)
 - `scripts/write-benchmark.sh`, `scripts/write-benchmark`
-- `scripts/update-benchmark.sh`
-- These are invoked by the top-level wrappers; you generally don't need to call them directly.
+- `scripts/update-benchmark.sh`, `scripts/update-benchmark`
 
