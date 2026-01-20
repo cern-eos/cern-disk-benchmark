@@ -223,12 +223,13 @@ def main():
         sys.exit(1)
     dev, mount, write_jpg, update_jpg, pdf_out, device_path, ts, host = sys.argv[1:9]
 
-    dev_base = os.path.basename(device_path)
+    dev_block = os.path.basename(device_path)
+
     # Resolve parent block device via sysfs to handle partitions (e.g., sdh1 -> sdh, nvme0n1p2 -> nvme0n1)
-    sys_class_path = os.path.realpath(f"/sys/class/block/{dev_base}")
-    dev_block = os.path.basename(os.path.dirname(sys_class_path))
-    if not dev_block:
-        dev_block = dev_base
+    if os.path.isfile(f"/sys/class/block/{dev_block}/partition"):
+        sys_class_path = os.path.realpath(f"/sys/class/block/{dev_block}")
+        dev_block = os.path.basename(os.path.dirname(sys_class_path))
+
     sysfs_base = f"/sys/block/{dev_block}"
     dev_block_path = f"/dev/{dev_block}"
 
